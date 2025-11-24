@@ -76,7 +76,6 @@ if ingredients_list and name_on_order:
                     nutrition_data = entry.get('nutrition', {})
                     
                     # Create the display dictionary, explicitly including all top-level keys
-                    # (Family, Genus) and then the nutrition keys.
                     display_dict = {
                         "Fruit Name": entry.get('name', fruit_chosen),
                         "Family": entry.get('family', 'N/A'),
