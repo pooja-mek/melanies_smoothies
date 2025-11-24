@@ -12,10 +12,8 @@ st.write("Choose the fruits you want in your custom Smoothie!")
 name_on_order = st.text_input("Name on Smoothie:")
 st.write("The name on your Smoothie will be:", name_on_order)
 
-my_dataframe = session.table('smoothies.public.fruit_options').select(
-    col('FRUIT_NAME'), col('SEARCH_ON')
-)
-pd_df = my_dataframe.to_pandas()  # Convert to pandas DataFrame
+my_dataframe = session.table('smoothies.public.fruit_options').select(col('FRUIT_NAME'), col('SEARCH_ON'))
+pd_df = my_dataframe.to_pandas()
 fruit_options = pd_df['FRUIT_NAME'].tolist()
 
 ingredients_list = st.multiselect(
@@ -38,12 +36,14 @@ if ingredients_list and name_on_order:
     if time_to_insert:
         session.sql(my_insert_stmt).collect()
         st.success(f"Your Smoothie is ordered! {name_on_order}!", icon="✅")
-
     
     for fruit_chosen in ingredients_list:
+        # Get the correct API search value
         search_on = pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
+        st.write(f"The search value for {fruit_chosen} is {search_on}.")  # For debugging
         st.subheader(f"{fruit_chosen} Nutrition Information")
         response = requests.get(f"https://my.smoothiefroot.com/api/fruit/{search_on}")
+
         try:
             data = response.json()
             if isinstance(data, list) and data:
@@ -54,4 +54,5 @@ if ingredients_list and name_on_order:
                 st.warning(f"No nutrition data found for {fruit_chosen}")
         except Exception as e:
             st.warning(f"Error fetching data for {fruit_chosen}: {e}")
+
 
