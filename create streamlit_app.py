@@ -5,6 +5,7 @@ import requests
 
 st.set_page_config(layout="wide")
 
+# Connect to Snowflake
 cnx = st.connection("snowflake")
 session = cnx.session()
 
@@ -13,6 +14,7 @@ st.write("Choose the fruits you want in your custom Smoothie!")
 
 name_on_order = st.text_input("Name on Smoothie:")
 
+# Helper: Get fruits & search mapping from DB
 def get_fruit_data():
     my_dataframe = session.table('smoothies.public.fruit_options').select(
         col('FRUIT_NAME'), col('SEARCH_ON')
@@ -22,61 +24,53 @@ def get_fruit_data():
 pd_df = get_fruit_data()
 fruit_options = pd_df['FRUIT_NAME'].tolist()
 
-
 ingredients_list = st.multiselect(
     'Choose up to 5 ingredients:',
     fruit_options,
     max_selections=5
 )
 
+# Checkbox for order filled/delivered status
+order_filled = st.checkbox("Mark order as delivered (filled)", value=False)
+
 if ingredients_list and name_on_order:
     ingredients_string = ' '.join(ingredients_list)
     time_to_insert = st.button('Submit Order')
     
     if time_to_insert:
-       
+        # Insert order with filled status
         sql_insert = (
-            "INSERT INTO smoothies.public.orders (ingredients, name_on_order) "
-            "VALUES (%s, %s)"
+            "INSERT INTO smoothies.public.orders (ingredients, name_on_order, order_filled) "
+            "VALUES (%s, %s, %s)"
         )
-     
-        session.sql(sql_insert, (ingredients_string, name_on_order)).collect()
-        st.success(f"Your Smoothie is ordered! {name_on_order}!", icon="✅")
+        session.sql(sql_insert, (ingredients_string, name_on_order, order_filled)).collect()
+        st.success(f"Your Smoothie is ordered! {name_on_order}!{' (Filled)' if order_filled else ''}", icon="✅")
     
     st.markdown("---")
- 
+
     for fruit_chosen in ingredients_list:
-        # Get the SEARCH_ON value from the Pandas DataFrame
+        # Get the exact SmoothieFroot API name for the fruit
         search_on = pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
-        
         st.subheader(f":apple: {fruit_chosen} Nutrition Information")
         response = requests.get(f"https://my.smoothiefroot.com/api/fruit/{search_on}")
         
         try:
             data = response.json()
-            
             if not isinstance(data, list):
                 data = [data]
-            
             if data:
-                
                 for entry in data:
                     nutrition_data = entry.get('nutrition', {})
-                   
                     display_dict = {
                         "Fruit Name": entry.get('name', fruit_chosen),
                         "Family": entry.get('family', 'N/A'),
                         "Genus": entry.get('genus', 'N/A'),
                         "Order": entry.get('order', 'N/A'),
-                        # Add all the nutrition data, cleaning up the key names
                         **{k.replace('_', ' ').title(): v for k, v in nutrition_data.items()}
                     }
-                    
                     df = pd.DataFrame([display_dict])
-                    # Use hide_index=True for a cleaner table
                     st.dataframe(df, use_container_width=True, hide_index=True)
             else:
                 st.warning(f"No nutrition data found for {fruit_chosen}")
-                
         except Exception as e:
             st.error(f"Error fetching/parsing API data for {fruit_chosen}: {e}")
