@@ -3,6 +3,7 @@ from snowflake.snowpark.functions import col
 import pandas as pd
 import requests
 
+st.set_page_config(layout="wide")
 
 cnx = st.connection("snowflake")
 session = cnx.session()
@@ -21,6 +22,7 @@ def get_fruit_data():
 pd_df = get_fruit_data()
 fruit_options = pd_df['FRUIT_NAME'].tolist()
 
+
 ingredients_list = st.multiselect(
     'Choose up to 5 ingredients:',
     fruit_options,
@@ -29,7 +31,6 @@ ingredients_list = st.multiselect(
 
 if ingredients_list and name_on_order:
     ingredients_string = ' '.join(ingredients_list)
-    
     time_to_insert = st.button('Submit Order')
     
     if time_to_insert:
@@ -43,8 +44,9 @@ if ingredients_list and name_on_order:
         st.success(f"Your Smoothie is ordered! {name_on_order}!", icon="✅")
     
     st.markdown("---")
-    
+ 
     for fruit_chosen in ingredients_list:
+        # Get the SEARCH_ON value from the Pandas DataFrame
         search_on = pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
         
         st.subheader(f":apple: {fruit_chosen} Nutrition Information")
@@ -53,15 +55,14 @@ if ingredients_list and name_on_order:
         try:
             data = response.json()
             
-
             if not isinstance(data, list):
                 data = [data]
             
             if data:
-                # Process and display all entries
+                
                 for entry in data:
                     nutrition_data = entry.get('nutrition', {})
-                    
+                   
                     display_dict = {
                         "Fruit Name": entry.get('name', fruit_chosen),
                         "Family": entry.get('family', 'N/A'),
