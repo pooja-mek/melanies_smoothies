@@ -3,10 +3,11 @@ from snowflake.snowpark.functions import col
 import pandas as pd
 import requests
 
-# Set the page configuration for better layout (optional but good practice)
+# Set the page configuration for a wider layout (optional but good practice)
 st.set_page_config(layout="wide")
 
 # 1. Database Connection and Session Setup
+# Assumes 'snowflake' is configured in your Streamlit secrets
 cnx = st.connection("snowflake")
 session = cnx.session()
 
@@ -17,7 +18,7 @@ st.write("Choose the fruits you want in your custom Smoothie!")
 name_on_order = st.text_input("Name on Smoothie:")
 
 # 3. Data Fetching and Pandas Conversion for Multiselect
-# Cache the data load so it doesn't run every time the app updates
+# Use st.cache_data to speed up the app by caching the data fetch
 @st.cache_data
 def get_fruit_data():
     my_dataframe = session.table('smoothies.public.fruit_options').select(
@@ -35,28 +36,28 @@ ingredients_list = st.multiselect(
     max_selections=5
 )
 
-# 5. Order Submission Logic
+# 5. Order Submission and API Fetching
 if ingredients_list and name_on_order:
     ingredients_string = ' '.join(ingredients_list)
     
-    # --- SECURE INSERT SECTION ---
-    # The 'time_to_insert' button must be checked first
+    # --- ORDER SUBMISSION SECTION ---
     time_to_insert = st.button('Submit Order')
     
     if time_to_insert:
-        # Use Snowpark's secure parameter binding (%s) to prevent SQL injection
+        # SECURE INSERT: Use Snowpark's parameter binding (%s) to prevent SQL injection
         sql_insert = (
             "INSERT INTO smoothies.public.orders (ingredients, name_on_order) "
             "VALUES (%s, %s)"
         )
-        # Pass the values as a tuple to the session.sql() method
+        # Pass the values as a tuple
         session.sql(sql_insert, (ingredients_string, name_on_order)).collect()
         st.success(f"Your Smoothie is ordered! {name_on_order}!", icon="✅")
     
     st.markdown("---")
-  
+    
+    # --- NUTRITION INFORMATION SECTION ---
     for fruit_chosen in ingredients_list:
-        # Get the SEARCH_ON value. This is the code shown on the webpage.
+        # Get the SEARCH_ON value from the Pandas DataFrame
         search_on = pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
         
         st.subheader(f":apple: {fruit_chosen} Nutrition Information")
@@ -73,13 +74,20 @@ if ingredients_list and name_on_order:
                 # Process and display all entries
                 for entry in data:
                     nutrition_data = entry.get('nutrition', {})
-                    # Flatten dictionary for a clean table
+                    
+                    # Create the display dictionary, explicitly including all top-level keys
+                    # (Family, Genus) and then the nutrition keys.
                     display_dict = {
                         "Fruit Name": entry.get('name', fruit_chosen),
+                        "Family": entry.get('family', 'N/A'),
+                        "Genus": entry.get('genus', 'N/A'),
+                        "Order": entry.get('order', 'N/A'),
+                        # Add all the nutrition data, cleaning up the key names
                         **{k.replace('_', ' ').title(): v for k, v in nutrition_data.items()}
                     }
                     
                     df = pd.DataFrame([display_dict])
+                    # Use hide_index=True for a cleaner table
                     st.dataframe(df, use_container_width=True, hide_index=True)
             else:
                 st.warning(f"No nutrition data found for {fruit_chosen}")
