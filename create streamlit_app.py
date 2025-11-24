@@ -1,20 +1,18 @@
 import streamlit as st
 from snowflake.snowpark.functions import col
-import requests  # Required for SmoothieFroot API
+import requests
 
-# Snowflake connection (for SniS, not SiS)
 cnx = st.connection("snowflake")
 session = cnx.session()
 
 st.title(":cup_with_straw: Customize Your Smoothie!")
 st.write("Choose the fruits you want in your custom Smoothie!")
 
-# Name input for smoothie order
 name_on_order = st.text_input("Name on Smoothie:")
 st.write("The name on your Smoothie will be:", name_on_order)
 
-my_dataframe = session.table("smoothies.public.fruit_options")
-fruit_options = my_dataframe.select('FRUIT_NAME').to_pandas()['FRUIT_NAME'].tolist()
+fruit_options_df = session.table("smoothies.public.fruit_options").select('FRUIT_NAME', 'SEARCH_ON').to_pandas()
+fruit_options = fruit_options_df['FRUIT_NAME'].tolist()
 
 ingredients_list = st.multiselect(
     'Choose up to 5 ingredients:',
@@ -37,11 +35,19 @@ if ingredients_list and name_on_order:
         session.sql(my_insert_stmt).collect()
         st.success(f"Your Smoothie is ordered! {name_on_order}!", icon="✅")
 
-# --- SmoothieFroot API Section ---
-smoothiefroot_response = requests.get("https://my.smoothiefroot.com/api/fruit/watermelon")
-
-# To just show the JSON raw:
-# st.text(smoothiefroot_response.json())
-
-# To show the info as a table:
-sf_df = st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
+    for fruit_chosen in ingredients_list:
+        search_term = fruit_options_df.loc[
+            fruit_options_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'
+        ].values[0]
+        st.subheader(f"{fruit_chosen} Nutrition Information")
+        response = requests.get(f"https://my.smoothiefroot.com/api/fruit/{search_term}")
+        try:
+            data = response.json()
+            if isinstance(data, list) and data:
+                st.dataframe(data=data, use_container_width=True)
+            elif isinstance(data, dict) and "error" in data:
+                st.dataframe(data)
+            else:
+                st.warning(f"No nutrition data found for {fruit_chosen}")
+        except Exception as e:
+            st.warning(f"Error fetching data for {fruit_chosen}: {e}")
