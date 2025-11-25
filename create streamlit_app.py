@@ -30,9 +30,14 @@ ingredients_list = st.multiselect(
 order_filled = st.checkbox('Mark order as filled')
 
 if ingredients_list and name_on_order:
-    # Join ingredients with single space - this uses FRUIT_NAME values directly
-    ingredients_string = ' '.join(ingredients_list)
-    st.write("Ingredients:", ingredients_string)
+    # Convert FRUIT_NAME selections to SEARCH_ON values for ingredients string
+    search_on_values = []
+    for fruit in ingredients_list:
+        search_on = pd_df.loc[pd_df['FRUIT_NAME'] == fruit, 'SEARCH_ON'].iloc[0]
+        search_on_values.append(search_on)
+    
+    ingredients_string = ' '.join(search_on_values)
+    st.write("Ingredients (SEARCH_ON):", ingredients_string)
     
     # Updated insert statement to include order_filled and order_ts
     my_insert_stmt = (
