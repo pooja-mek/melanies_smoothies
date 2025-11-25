@@ -29,8 +29,7 @@ ingredients_list = st.multiselect(
 order_filled = st.checkbox('Mark order as filled')
 
 if ingredients_list and name_on_order:
-    # CRITICAL: Join ingredients with space AND add trailing space for grader
-    ingredients_string = ' '.join(ingredients_list) + ' '
+  ingredients_string = ' '.join(ingredients_list) + ' '
     
     st.write("Ingredients:", f"'{ingredients_string}'")
     st.write("(Includes trailing space required by grader)")
