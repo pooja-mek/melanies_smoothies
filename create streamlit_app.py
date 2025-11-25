@@ -3,30 +3,25 @@ from snowflake.snowpark.functions import col
 import pandas as pd
 import requests
 
-# Connect to Snowflake
 cnx = st.connection("snowflake")
 session = cnx.session()
 
 st.title(":cup_with_straw: Customize Your Smoothie!")
 st.write("Choose the fruits you want in your custom Smoothie!")
 
-# Name input for the order
 name_on_order = st.text_input("Name on Smoothie:")
 st.write("The name on your Smoothie will be:", name_on_order)
 
-# Get fruit options and search mapping
 my_dataframe = session.table('smoothies.public.fruit_options').select(col('FRUIT_NAME'), col('SEARCH_ON'))
 pd_df = my_dataframe.to_pandas()
 fruit_options = pd_df['FRUIT_NAME'].tolist()
 
-# Multiselect for fruits
 ingredients_list = st.multiselect(
     'Choose up to 5 ingredients:',
     fruit_options,
     max_selections=5
 )
 
-# Add checkbox for order_filled status
 order_filled = st.checkbox('Mark order as filled')
 
 if ingredients_list and name_on_order:
